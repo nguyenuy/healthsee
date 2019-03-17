@@ -30,6 +30,10 @@ def create_figure():
           line_color=None)
     return p
 
+#create a new plot based n zip code
+def generate_report_by_zip_code(zip_code):
+    return create_figure()
+
 #Make the app
 app = Flask(__name__)
     
@@ -38,6 +42,15 @@ app = Flask(__name__)
 def home():
     return render_template("home.html")
 
+@app.route("/zip_code")
+def data_by_zip_code():
+    #get the zip code
+    zip_code = 30033
+    #get health report for this zip code
+    plot = generate_report_by_zip_code(zip_code)
+    script, div = components(plot)
+    return render_template("dashboard.html", plot = [div, script])
+    
 @app.route("/health_report")
 def health_report():
     #create two vectors

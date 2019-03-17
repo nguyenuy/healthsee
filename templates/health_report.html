@@ -18,6 +18,17 @@
 	<script type="text/javascript" src="https://cdn.pydata.org/bokeh/release/bokeh-api-1.0.4.min.js"></script>
 	<script type="text/javascript" src="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.0.4.min.js"></script>
 
+	<!-- Custom Scripts -->
+	<script>
+		$(document).ready( function() {
+			$('#submit_button').click(function() {
+			   $.ajax("{{ url_for('data_by_zip_code') }}").done(function (reply) {
+				  $('#dashboard').html(reply);
+			   });
+			});
+		});
+	</script>
+
     <title>HealthSee</title>
   </head>
   <body>
@@ -53,15 +64,17 @@
 					<label for="inputZipCode" class="sr-only">Enter Your Zip Code</label>
 					<input type="text" class="form-control" id="inputZipCode" placeholder="Zip Code">
 				 </div>
-				 <button type="submit" class="btn btn-primary mb-2">Generate Report</button>
+				 <button id="submit_button" class="btn btn-primary mb-2">Generate Report</button>
 			</form>
 		</div>
 		<br>
-		<div class="row">
-			<div class="colmd-10 align-self-center">
-				{% for part in plot %}
-					{{part | safe}}
-				{% endfor %}
+		<div id="dashboard">
+			<div class="row">
+				<div class="colmd-10 align-self-center">
+					{% for part in plot %}
+						{{part | safe}}
+					{% endfor %}
+				</div>
 			</div>
 		</div>
 	</div>
