@@ -8,6 +8,7 @@ from bokeh.embed import components
 from flask import Flask, render_template
 #zipfile - data storage utilities
 import zipfile
+import health_data
 
 def unpack_data(path_to_zip_file, directory_to_extract_to):
     zip_ref = zipfile.ZipFile(path_to_zip_file, 'r')
@@ -68,4 +69,5 @@ if __name__ == "__main__":
     unpack_data("data.zip", "data")
     #run the app
     print("running the app.")
+    health_data.get_zip_code_score(30084)
     app.run()
