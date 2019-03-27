@@ -1,24 +1,30 @@
 # HealthScore Calculator Module
 
 from datetime import datetime
+from geopy.distance import geodesic
+from geopy.geocoders import Nominatim
 from uszipcode import SearchEngine
+import ast
 import numpy as np
 import pandas as pd
-from geopy.geocoders import Nominatim
-from geopy.distance import geodesic
 
 
 # Let's just load everything up front in this module
-df_2018 = pd.read_csv('Data/2018-12.csv')
+print('Loading in data.....')
+df_2018 = pd.read_csv('Data/2018-12.csv', dtype={'zipcode': str})
+df_closest_zipcodes = pd.read_csv('closest_zips.csv')
+zip_code_list = df_closest_zipcodes['zipcode'].values.tolist()
+df_closest_zipcodes = df_closest_zipcodes.set_index('zipcode').T
 search = SearchEngine(simple_zipcode=False)
 search_simple = SearchEngine(simple_zipcode=True)
 
 # This is a long initial load...load all information into a dict and never use the zipcode database again for information
-all_zipcodes_info = search.by_population(lower=0, upper=999, returns=40)
-all_zipcodes_info = list(map(lambda x: x.to_dict(), all_zipcodes_info))
-all_zipcodes = list(map(lambda x: x['zipcode'], all_zipcodes_info))
-all_zipcodes_info = {d['zipcode']: d for d in all_zipcodes_info}
+print('Loading in all zipcodes')
+#all_zipcodes_info = search.by_population(lower=0, upper=9999999999999, returns=40000) # This line runs extremely slowly
+all_zipcodes = None
+all_zipcodes_info = None
 
+print('Done loading zipcode information')
 class Facilities:
     def __init__(self, df, zipcode, closest_zipcodes):
         self.df = df
@@ -87,6 +93,22 @@ class Facilities:
         net_closures = len(closures.index) - len(openings.index)
         return net_closures
 
+    def get_average_age_facility(self):
+        self.insert_facility_age_column()
+        return self.active_fac_df['age_of_facility'].mean()
+
+    def get_number_of_physicians(self):
+        return self.active_fac_df['PHYSN_CNT'].sum()
+
+    def get_number_of_facilities_offering_cancer_detection(self):
+        nuclear_medicine_offerings = self.active_fac_df[self.active_fac_df['NUCLR_MDCN_SRVC_CD']!=0]
+        diagnostic_radiology = self.active_fac_df[self.active_fac_df['DGNSTC_RDLGY_SRVC_CD']!=0]
+        ct_scan = self.active_fac_df[self.active_fac_df['CT_SCAN_SRVC_CD']!=0]
+
+        total = pd.concat([nuclear_medicine_offerings, diagnostic_radiology, ct_scan]).drop_duplicates()
+
+        return len(total.index)
+        
     
 
 
@@ -114,14 +136,14 @@ def get_zipcode_coordinates(zipcode):
 def get_closest_zipcodes(zipcode, radius=5):
     '''Gets the list of closest zipcodes within a default=5 mile radius
     '''
-    coordinates = get_zipcode_coordinates(zipcode)
-    # import time
-    #start_time = time.time()
-    closest_zipcodes = search_simple.by_coordinates(coordinates[0], coordinates[1], radius, returns=100)
-    closest_zipcodes = list(map(lambda x: x.zipcode, closest_zipcodes))
-    #print("--- %s seconds ---" % (time.time() - start_time))
-    return closest_zipcodes
-
+    try:
+        closest_zipcodes = df_closest_zipcodes[int(zipcode)].values.tolist()[1]
+        return ast.literal_eval(closest_zipcodes)
+    except:
+        coordinates = get_zipcode_coordinates(zipcode)
+        closest_zipcodes = search_simple.by_coordinates(coordinates[0], coordinates[1], radius, returns=100)
+        closest_zipcodes = list(map(lambda x: x.zipcode, closest_zipcodes))
+        return closest_zipcodes
 
 def get_zipcode_score_and_data(zipcode):
     general_zipcode_information = search.by_zipcode(zipcode)
@@ -151,7 +173,7 @@ def calculate_health_score(zipcode):
         zipcode_info = get_zipcode_info(close_zip)
         total_population = total_population + zipcode_info['population']
 
-    if num_beds >= 0.0:
+    if num_beds > 0.0:
         metrics['people_per_bed'] = total_population/num_beds
     elif num_beds is null:
         metrics['people_per_bed'] = 0
@@ -159,10 +181,28 @@ def calculate_health_score(zipcode):
         metrics['people_per_bed'] = 0
 
     # Metric 3: Age of facility
-    zip_facilities.insert_facility_age_column()
-    metrics['avg_facility_age'] = np.mean(zip_facilities.active_fac_df['age_of_facility'])
+    #zip_facilities.insert_facility_age_column()
+    #metrics['avg_facility_age'] = np.mean(zip_facilities.active_fac_df['age_of_facility'])
     
     metrics['zipcode'] = zipcode
+
+    # Metric 3: Average Age of Facility
+    average_age_facility = zip_facilities.get_average_age_facility()
+    if average_age_facility > 0.0:
+        metrics['average_age_facility'] = 1.0/average_age_facility # Want the inverse to give newer facilities higher ranking
+    else:
+        metrics['average_age_facility'] = 0.0
+    
+    # Metric 4: Population / On-Hand_Staff (Doctors)
+    number_physicians = zip_facilities.get_number_of_physicians()
+    if number_physicians > 0.0:
+        metrics['people_per_physician'] = total_population/number_physicians
+    else:
+        metrics['people_per_physician'] = 0.0
+    
+
+    # Metric 5: Number of Facilities offering Cancer Detection Services
+    metrics['facilities_offering_cancer_detect'] = zip_facilities.get_number_of_facilities_offering_cancer_detection()
     return metrics
 
 def build_metric_df(zipcodes):
@@ -174,8 +214,7 @@ def build_metric_df(zipcodes):
     # Normalize metric columns
     from sklearn.preprocessing import MinMaxScaler
     min_max_scaler = MinMaxScaler() 
-    column_names_to_normalize = ['closures', 'people_per_bed', 'avg_facility_age']
-    print(metric_df[column_names_to_normalize])
+    column_names_to_normalize = ['closures', 'people_per_bed', 'people_per_physician', 'facilities_offering_cancer_detect', 'avg_facility_age']
     x = metric_df[column_names_to_normalize].values
     x_scaled = min_max_scaler.fit_transform(x)
     df_temp = pd.DataFrame(x_scaled, columns=column_names_to_normalize, index = metric_df.index)
@@ -183,14 +222,21 @@ def build_metric_df(zipcodes):
 
 
     #print(metric_df.to_string())
+    metric_df.to_csv('normalized_metrics.csv')
     return metric_df
 
+def load():
+    print('Now we are really loading things.........')
+    global all_zipcodes_info
+    global all_zipcodes
+    all_zipcodes_info = list(map(lambda x: search.by_zipcode(x).to_dict(), zip_code_list))
+    all_zipcodes = list(map(lambda x: x['zipcode'], all_zipcodes_info))
+    all_zipcodes_info = {d['zipcode']: d for d in all_zipcodes_info}
 
 
 
 if __name__ == "__main__":
-    # TODO: cache closest zip codes column that is precomputed in csv
-
+    load()
     ###
     zipcode = 60629
     slalom_loc = (33.854473,-84.360729)
