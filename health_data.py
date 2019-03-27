@@ -263,8 +263,15 @@ def build_metric_df(zipcodes):
 
     # Normalize metric columns
     from sklearn.preprocessing import MinMaxScaler
-    min_max_scaler = MinMaxScaler() 
-    column_names_to_normalize = ['closures', 'people_per_bed', 'people_per_physician', 'facilities_offering_cancer_detect', 'avg_facility_age']
+    min_max_scaler = MinMaxScaler()
+    column_names_to_normalize = ['closures',
+                                 'people_per_bed',
+                                 'people_per_physician',
+                                 'facilities_offering_cancer_detect',
+                                 'avg_facility_age',
+                                 'num_of_types_of_facilities',
+                                 'people_per_registered_nurse',
+                                 'people_per_registered_pharmacist']
     x = metric_df[column_names_to_normalize].values
     x_scaled = min_max_scaler.fit_transform(x)
     df_temp = pd.DataFrame(x_scaled, columns=column_names_to_normalize, index = metric_df.index)
