@@ -108,8 +108,39 @@ class Facilities:
         total = pd.concat([nuclear_medicine_offerings, diagnostic_radiology, ct_scan]).drop_duplicates()
 
         return len(total.index)
-        
-    
+
+    def get_number_of_registered_nurses(self):
+        return self.active_fac_df['RN_CNT'].sum()
+
+    def get_number_of_registered_pharmacists(self):
+        return self.active_fac_df['REG_PHRMCST_CNT'].sum()
+
+    def get_number_of_unique_provider_categories(self):
+        """
+        Values of PRVDR_CTGRY_CD -- total of 18:
+            01=Hospital
+            02=Skilled Nursing Facility/Nursing Facility (Dually Certified)
+            03=Skilled Nursing Facility/Nursing Facility (Distinct Part)
+            04=Skilled Nursing Facility
+            05=Home Health Agency
+            06=Psychiatric Residential Treatment Facility
+            07=Portable X-Ray Supplier
+            08=Outpatient Physical Therapy/Speech Pathology
+            09=End Stage Renal Disease Facility
+            10=Nursing Facility
+            11=Intermediate Care Facility/Individuals with Intellectual Disabilities
+            12=Rural Health Clinic
+            14=Comprehensive Outpatient Rehab Facility
+            15=Ambulatory Surgical Center
+            16=Hospice
+            17=Organ Procurement Organization
+            19=Community Mental Health Center
+            21=Federally Qualified Health Center
+        :return:
+        """
+
+        return len(df_2018["PRVDR_CTGRY_CD"].value_counts().index)
+
 
 
 ''' General Module Functions
@@ -203,7 +234,26 @@ def calculate_health_score(zipcode):
 
     # Metric 5: Number of Facilities offering Cancer Detection Services
     metrics['facilities_offering_cancer_detect'] = zip_facilities.get_number_of_facilities_offering_cancer_detection()
+
+    # Metric 6: Number of unique provider types
+    metrics['num_of_types_of_facilities'] = zip_facilities.get_number_of_unique_provider_categories()
+
+    # Metric 7: People per registered nurse
+    number_nurses = zip_facilities.get_number_of_registered_nurses()
+    if number_nurses > 0.0:
+        metrics['people_per_registered_nurse'] = total_population/number_nurses
+    else:
+        metrics['people_per_registered_nurse'] = 0.0
+
+    # Metric 8: People per registered pharmacist
+    number_pharmacists = zip_facilities.get_number_of_registered_nurses()
+    if number_nurses > 0.0:
+        metrics['people_per_registered_pharmacist'] = total_population/number_pharmacists
+    else:
+        metrics['people_per_registered_pharmacist'] = 0.0
+
     return metrics
+
 
 def build_metric_df(zipcodes):
     health_metrics = list(map(lambda x: calculate_health_score(x), zipcodes))
