@@ -14,7 +14,7 @@ search = SearchEngine(simple_zipcode=False)
 search_simple = SearchEngine(simple_zipcode=True)
 
 # This is a long initial load...load all information into a dict and never use the zipcode database again for information
-all_zipcodes_info = search.by_population(lower=0, upper=9999999999999, returns=40000)
+all_zipcodes_info = search.by_population(lower=0, upper=999, returns=40)
 all_zipcodes_info = list(map(lambda x: x.to_dict(), all_zipcodes_info))
 all_zipcodes = list(map(lambda x: x['zipcode'], all_zipcodes_info))
 all_zipcodes_info = {d['zipcode']: d for d in all_zipcodes_info}
@@ -86,7 +86,7 @@ class Facilities:
 
         net_closures = len(closures.index) - len(openings.index)
         return net_closures
-        
+
     
 
 
@@ -153,10 +153,15 @@ def calculate_health_score(zipcode):
 
     if num_beds >= 0.0:
         metrics['people_per_bed'] = total_population/num_beds
+    elif num_beds is null:
+        metrics['people_per_bed'] = 0
     else:
         metrics['people_per_bed'] = 0
 
-
+    # Metric 3: Age of facility
+    zip_facilities.insert_facility_age_column()
+    metrics['avg_facility_age'] = np.mean(zip_facilities.active_fac_df['age_of_facility'])
+    
     metrics['zipcode'] = zipcode
     return metrics
 
@@ -169,7 +174,8 @@ def build_metric_df(zipcodes):
     # Normalize metric columns
     from sklearn.preprocessing import MinMaxScaler
     min_max_scaler = MinMaxScaler() 
-    column_names_to_normalize = ['closures', 'people_per_bed']
+    column_names_to_normalize = ['closures', 'people_per_bed', 'avg_facility_age']
+    print(metric_df[column_names_to_normalize])
     x = metric_df[column_names_to_normalize].values
     x_scaled = min_max_scaler.fit_transform(x)
     df_temp = pd.DataFrame(x_scaled, columns=column_names_to_normalize, index = metric_df.index)
@@ -180,7 +186,7 @@ def build_metric_df(zipcodes):
     return metric_df
 
 
-    
+
 
 if __name__ == "__main__":
     # TODO: cache closest zip codes column that is precomputed in csv
@@ -203,14 +209,14 @@ if __name__ == "__main__":
     geolocator = Nominatim(user_agent="healthsea", timeout=5)
     zip_facilities.insert_lat_long_dist_columns()
     zip_facilities.insert_facility_age_column('age_of_facility')
+
     
-    
-    
-    
+
+
 # -
-#zip_facilities.active_fac_df = zip_facilities.active_fac_df.sort_values(['Dist','BED_CNT', 'RN_CNT', 'age_of_facility'], ascending=[True, True, True, True])
-#zip_facilities.active_fac_df[['FAC_NAME', 'Dist','BED_CNT', 'RN_CNT', 'age_of_facility']]
-#EMPLEE_CNT
+# zip_facilities.active_fac_df = zip_facilities.active_fac_df.sort_values(['Dist','BED_CNT', 'RN_CNT', 'age_of_facility'], ascending=[True, True, True, True])
+# zip_facilities.active_fac_df[['FAC_NAME', 'Dist','BED_CNT', 'RN_CNT', 'age_of_facility']]
+# EMPLEE_CNT
 
 
 
