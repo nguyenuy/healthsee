@@ -145,6 +145,25 @@ class Facilities:
 
         return len(df_2018["PRVDR_CTGRY_CD"].value_counts().index)
 
+    def urgent_care_provider(self):
+        """
+        get ER, Urgent Care providers
+        """
+        er_hospitals = self.active_fac_df[(self.active_fac_df['PRVDR_CTGRY_CD'] == 1) &
+                                          (self.active_fac_df['DCTD_ER_SRVC_CD'] >= 1.0)] \
+            .drop_duplicates(subset=['FAC_NAME'])
+        return er_hospitals['FAC_NAME'].values.tolist()
+
+    def urgent_care_pediatric_provider(self):
+        """
+        get ER, Urgent Care providers offered for pediatrics
+        """
+
+        er_pediatric_hospitals = self.active_fac_df[(self.active_fac_df['PRVDR_CTGRY_CD'] == 1) &
+                                          (self.active_fac_df['PED_SRVC_CD'] >= 1.0)] \
+            .drop_duplicates(subset=['FAC_NAME'])
+        return er_pediatric_hospitals['FAC_NAME'].values.tolist()
+
 
 
 ''' General Module Functions
@@ -243,7 +262,21 @@ def calculate_health_score(zipcode):
     else:
         metrics['people_per_registered_pharmacist'] = 0.0
 
+    # Metric 9: ER, Urgent Care hospitals
+    urgent_care_hospitals = zip_facilities.urgent_care_provider()
+    metrics['number_of_urgent_care'] = len(urgent_care_hospitals)
+    metrics['urgent_care_hospitals'] = urgent_care_hospitals
+
+    # Metric 10: ER, Urgent Care hospitals - Pediatrics
+
+    urgent_care_pediatrics_hospitals = zip_facilities.urgent_care_pediatric_provider()
+
+    metrics['number_of_urgent_care_pediatrics'] = len(urgent_care_pediatrics_hospitals)
+    metrics['urgent_care_hospitals_pediatrics'] = urgent_care_pediatrics_hospitals
+
     return metrics
+
+
 
 
 def build_metric_df(zipcodes):
@@ -262,7 +295,11 @@ def build_metric_df(zipcodes):
                                  'avg_facility_age',
                                  'num_of_types_of_facilities',
                                  'people_per_registered_nurse',
-                                 'people_per_registered_pharmacist']
+                                 'people_per_registered_pharmacist',
+                                 'number_of_urgent_care',
+                                 'urgent_care_hospitals',
+                                 'number_of_urgent_care_pediatrics',
+                                 'urgent_care_hospitals_pediatrics']
     x = metric_df[column_names_to_normalize].values
     x_scaled = min_max_scaler.fit_transform(x)
     df_temp = pd.DataFrame(x_scaled, columns=column_names_to_normalize, index = metric_df.index)
