@@ -165,6 +165,7 @@ class Facilities:
         return er_pediatric_hospitals['FAC_NAME'].values.tolist()
 
 
+count = 0
 
 ''' General Module Functions
 '''
@@ -190,18 +191,14 @@ def get_zipcode_coordinates(zipcode):
 def get_closest_zipcodes(zipcode, radius=5):
     '''Gets the list of closest zipcodes within a default=5 mile radius
     '''
-    try:
-        closest_zipcodes = df_closest_zipcodes[int(zipcode)].values.tolist()[1]
-        return ast.literal_eval(closest_zipcodes)
-    except:
-        coordinates = get_zipcode_coordinates(zipcode)
-        closest_zipcodes = search_simple.by_coordinates(coordinates[0], coordinates[1], radius, returns=100)
-        closest_zipcodes = list(map(lambda x: x.zipcode, closest_zipcodes))
-        return closest_zipcodes
+    coordinates = get_zipcode_coordinates(zipcode)
+    closest_zipcodes = search_simple.by_coordinates(coordinates[0], coordinates[1], radius, returns=100)
+    closest_zipcodes = list(map(lambda x: x.zipcode, closest_zipcodes))
+    return closest_zipcodes
 
 def calculate_health_score(zipcode):
     metrics = {}
-    closest_zipcodes = get_closest_zipcodes(zipcode, radius=10)
+    closest_zipcodes = get_closest_zipcodes(zipcode, radius=20)
     zip_facilities = Facilities(df_2018, zipcode, closest_zipcodes)
 
     # Metric 1: Closures past 10 years
@@ -265,22 +262,28 @@ def calculate_health_score(zipcode):
     # Metric 9: ER, Urgent Care hospitals
     urgent_care_hospitals = zip_facilities.urgent_care_provider()
     metrics['number_of_urgent_care'] = len(urgent_care_hospitals)
-    metrics['urgent_care_hospitals'] = urgent_care_hospitals
+    #metrics['urgent_care_hospitals'] = urgent_care_hospitals
 
     # Metric 10: ER, Urgent Care hospitals - Pediatrics
 
     urgent_care_pediatrics_hospitals = zip_facilities.urgent_care_pediatric_provider()
 
     metrics['number_of_urgent_care_pediatrics'] = len(urgent_care_pediatrics_hospitals)
-    metrics['urgent_care_hospitals_pediatrics'] = urgent_care_pediatrics_hospitals
+    #metrics['urgent_care_hospitals_pediatrics'] = urgent_care_pediatrics_hospitals
 
+    global count
+    count = count + 1
+    if count % 500 == 0:
+        print(str(datetime.now()) + ' ==> ' + str(count))
+        
     return metrics
 
 
 
 
 def build_metric_df(zipcodes):
-    health_metrics = list(map(lambda x: calculate_health_score(x), zipcodes))
+    #health_metrics = list(map(lambda x: calculate_health_score(x), zipcodes))
+    health_metrics = [calculate_health_score(x) for x in zipcodes]
 
     metric_df = pd.DataFrame(health_metrics)
     metric_df = metric_df.set_index('zipcode')
@@ -292,14 +295,11 @@ def build_metric_df(zipcodes):
                                  'people_per_bed',
                                  'people_per_physician',
                                  'facilities_offering_cancer_detect',
-                                 'avg_facility_age',
                                  'num_of_types_of_facilities',
                                  'people_per_registered_nurse',
                                  'people_per_registered_pharmacist',
                                  'number_of_urgent_care',
-                                 'urgent_care_hospitals',
-                                 'number_of_urgent_care_pediatrics',
-                                 'urgent_care_hospitals_pediatrics']
+                                 'number_of_urgent_care_pediatrics']
     x = metric_df[column_names_to_normalize].values
     x_scaled = min_max_scaler.fit_transform(x)
     df_temp = pd.DataFrame(x_scaled, columns=column_names_to_normalize, index = metric_df.index)
@@ -349,15 +349,28 @@ def load():
     all_zipcodes_info = {d['zipcode']: d for d in all_zipcodes_info}
 
 
+def get_zipcode_dict(zipcode):
+    zipcodes = get_closest_zipcodes(zipcode, 20)
+    blah = {}
+    blah['zipcodes'] = zipcode
+    blah['closest_zips'] = zipcodes
+    return blah
+def write_closest_zipcodes_csv():
+    
+
+    blah = [get_zipcode_dict(x) for x in all_zipcodes]
+    df = pd.DataFrame(blah)
+    df.to_csv('closest_zips.csv')
+
+
 
 if __name__ == "__main__":
+    load()
     print(get_similar_zipcodes('30084'))
     print(get_highest_scores_zipcodes())
     print(get_lowest_scores_zipcodes())
     print(get_normalized_metrics('33172'))
     print(get_total_normalized_health_score('33172'))
-    exit(0)
-    load()
     ###
     zipcode = 60629
     slalom_loc = (33.854473,-84.360729)
