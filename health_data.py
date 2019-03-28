@@ -18,6 +18,10 @@ df_closest_zipcodes = df_closest_zipcodes.set_index('zipcode').T
 search = SearchEngine(simple_zipcode=False)
 search_simple = SearchEngine(simple_zipcode=True)
 
+print('Loading in pre-computed metrics')
+df_metrics_normalized = pd.read_csv('normalized_metrics.csv', dtype={'zipcode': str})
+df_metrics_normalized = df_metrics_normalized.set_index('zipcode').T
+
 # This is a long initial load...load all information into a dict and never use the zipcode database again for information
 print('Loading in all zipcodes')
 #all_zipcodes_info = search.by_population(lower=0, upper=9999999999999, returns=40000) # This line runs extremely slowly
@@ -176,17 +180,6 @@ def get_closest_zipcodes(zipcode, radius=5):
         closest_zipcodes = list(map(lambda x: x.zipcode, closest_zipcodes))
         return closest_zipcodes
 
-def get_zipcode_score_and_data(zipcode):
-    general_zipcode_information = search.by_zipcode(zipcode)
-
-    healthscore = calculate_health_score(zipcode)
-
-
-    result = {}
-
-def set_metric_information(metric, description, value):
-    pass
-
 def calculate_health_score(zipcode):
     metrics = {}
     closest_zipcodes = get_closest_zipcodes(zipcode, radius=10)
@@ -216,11 +209,11 @@ def calculate_health_score(zipcode):
     metrics['zipcode'] = zipcode
 
     # Metric 3: Average Age of Facility
-    average_age_facility = zip_facilities.get_average_age_facility()
-    if average_age_facility > 0.0:
-        metrics['average_age_facility'] = 1.0/average_age_facility # Want the inverse to give newer facilities higher ranking
-    else:
-        metrics['average_age_facility'] = 0.0
+    #average_age_facility = zip_facilities.get_average_age_facility()
+    #if average_age_facility > 0.0:
+    #    metrics['average_age_facility'] = 1.0/average_age_facility # Want the inverse to give newer facilities higher ranking
+    #else:
+    #    metrics['average_age_facility'] = 0.0
     
     # Metric 4: Population / On-Hand_Staff (Doctors)
     number_physicians = zip_facilities.get_number_of_physicians()
@@ -280,6 +273,36 @@ def build_metric_df(zipcodes):
     metric_df.to_csv('normalized_metrics.csv')
     return metric_df
 
+def get_total_normalized_health_score(zipcode):
+    '''Gets the normalized health score for a zipcode
+    '''
+    'Puts this on a scale from 0 to 100'
+    return df_metrics_normalized[str(zipcode)].sum()
+
+def get_normalized_metrics(zipcode):
+    '''Gets the normalized metrics for a zipcode as a dict
+    '''
+    return df_metrics_normalized[str(zipcode)].to_dict()
+
+def get_similar_zipcodes(zipcode):
+    '''Gets similar zipcodes with similar
+    '''
+    zipcode_score = get_total_normalized_health_score (zipcode)
+    summed = df_metrics_normalized.sum()
+
+    lower_bound = .95 * zipcode_score
+    upper_bound = 1.05 * zipcode_score
+
+    return summed.where((summed > lower_bound) & (summed < upper_bound )).dropna().keys().to_list()
+
+def get_lowest_scores_zipcodes(number=10):
+    summed = df_metrics_normalized.sum()
+    return summed.nsmallest(number).keys().to_list()
+    
+def get_highest_scores_zipcodes(number=10):
+    summed = df_metrics_normalized.sum()
+    return summed.nlargest(number).keys().to_list()
+
 def load():
     print('Now we are really loading things.........')
     global all_zipcodes_info
@@ -291,6 +314,12 @@ def load():
 
 
 if __name__ == "__main__":
+    print(get_similar_zipcodes('30084'))
+    print(get_highest_scores_zipcodes())
+    print(get_lowest_scores_zipcodes())
+    print(get_normalized_metrics('33172'))
+    print(get_total_normalized_health_score('33172'))
+    exit(0)
     load()
     ###
     zipcode = 60629
