@@ -175,10 +175,8 @@ def calculate_health_score(zipcode):
 
     if num_beds > 0.0:
         metrics['people_per_bed'] = total_population/num_beds
-    elif num_beds is null:
-        metrics['people_per_bed'] = 0
     else:
-        metrics['people_per_bed'] = 0
+        metrics['people_per_bed'] = 0.0
 
     # Metric 3: Age of facility
     #zip_facilities.insert_facility_age_column()
