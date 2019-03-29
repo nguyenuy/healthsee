@@ -15,8 +15,8 @@ df_2018 = pd.read_csv('Data/2018-12.csv', dtype={'zipcode': str})
 df_closest_zipcodes = pd.read_csv('closest_zips.csv')
 zip_code_list = df_closest_zipcodes['zipcode'].values.tolist()
 df_closest_zipcodes = df_closest_zipcodes.set_index('zipcode').T
-search = SearchEngine(simple_zipcode=False)
-search_simple = SearchEngine(simple_zipcode=True)
+#search = SearchEngine(simple_zipcode=False)
+#search_simple = SearchEngine(simple_zipcode=True)
 
 print('Loading in pre-computed metrics')
 df_metrics_normalized = pd.read_csv('normalized_metrics.csv', dtype={'zipcode': str})
@@ -173,6 +173,8 @@ def get_zipcode_info(zipcode):
     '''Returns a dict containing information for a zipcode
     '''
     # Caching here to some degree
+    search = SearchEngine(simple_zipcode=False)
+    search_simple = SearchEngine(simple_zipcode=True)
     try:
         return all_zipcodes_info[str(zipcode)]
     except:
@@ -191,6 +193,8 @@ def get_zipcode_coordinates(zipcode):
 def get_closest_zipcodes(zipcode, radius=5):
     '''Gets the list of closest zipcodes within a default=5 mile radius
     '''
+    search = SearchEngine(simple_zipcode=False)
+    search_simple = SearchEngine(simple_zipcode=True)
     coordinates = get_zipcode_coordinates(zipcode)
     closest_zipcodes = search_simple.by_coordinates(coordinates[0], coordinates[1], radius, returns=100)
     closest_zipcodes = list(map(lambda x: x.zipcode, closest_zipcodes))
@@ -344,6 +348,8 @@ def load():
     print('Now we are really loading things.........')
     global all_zipcodes_info
     global all_zipcodes
+    search = SearchEngine(simple_zipcode=False)
+    search_simple = SearchEngine(simple_zipcode=True)
     all_zipcodes_info = list(map(lambda x: search.by_zipcode(x).to_dict(), zip_code_list))
     all_zipcodes = list(map(lambda x: x['zipcode'], all_zipcodes_info))
     all_zipcodes_info = {d['zipcode']: d for d in all_zipcodes_info}
