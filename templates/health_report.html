@@ -19,15 +19,7 @@
 	<script type="text/javascript" src="https://cdn.pydata.org/bokeh/release/bokeh-widgets-1.0.4.min.js"></script>
 
 	<!-- Custom Scripts -->
-	<script>
-		$(document).ready( function() {
-			$('#submit_button').click(function() {
-			   $.ajax("{{ url_for('data_by_zip_code') }}").done(function (reply) {
-				  $('#dashboard').html(reply);
-			   });
-			});
-		});
-	</script>
+	<script src="/static/js/script.js"></script>
 
     <title>HealthSee</title>
   </head>
@@ -62,12 +54,13 @@
 			<form class="form-inline">
 				 <div class="form-group mx-sm-3 mb-2">
 					<label for="inputZipCode" class="sr-only">Enter Your Zip Code</label>
-					<input type="text" class="form-control" id="inputZipCode" placeholder="Zip Code">
+					<input type="text" class="form-control" id="inputZipCode" placeholder="30033">
 				 </div>
-				 <button id="submit_button" class="btn btn-primary mb-2">Generate Report</button>
 			</form>
+			<button id="submit_button" class="btn btn-primary mb-2">Generate Report</button>
 		</div>
 		<br>
+		{% if my_report is defined %}
 		<div id="dashboard">
 			<div class="row">
 				<div class="colmd-10 align-self-center">
@@ -76,7 +69,28 @@
 					{% endfor %}
 				</div>
 			</div>
+			<div class="row">
+				<div class="colmd-10 align-self-center">
+		
+				</div>
+			</div>
+			{% if neighbor_report|length %}
+			<div class="row">
+				<div class="colmd-10 align-self-center">
+					<table class="table">
+					<thead>
+						<tr>
+						</tr>
+					</thead>
+					{% for report in neighbor_report %}
+						{{report |safe}}
+					{% endfor %}
+					</table>
+				</div>
+			</div>
+			{% endif %}
 		</div>
+		{% endif %}
 	</div>
 	<div>
 	</div>

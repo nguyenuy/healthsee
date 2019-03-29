@@ -6,27 +6,22 @@ from bokeh.plotting import figure
 from bokeh.embed import components
 #Flask - web serving capabilities
 from flask import Flask, render_template
-#zipfile - data storage utilities
-import zipfile
+#health_data imports
 import health_data
 
-def unpack_data(path_to_zip_file, directory_to_extract_to):
-    zip_ref = zipfile.ZipFile(path_to_zip_file, 'r')
-    zip_ref.extractall(directory_to_extract_to)
-    zip_ref.close()
 
 # Create the main plot
-def create_figure():
-    N = 40
-    x = np.random.random(size=N) * 100
-    y = np.random.random(size=N) * 100
-    radii = np.random.random(size=N) * 1.5
+def create_normalized_score_figure(zipcodes):
+    scores = []
+    for i in range(0, len(zipcodes)):
+        score = health_data.get_total_normalized_health_score(zipcodes[i])
+        scores.append(score)
     colors = [
         "#%02x%02x%02x" % (int(r), int(g), 150) for r, g in zip(50+2*x, 30+2*y)
     ]
     TOOLS="hover,crosshair,pan,wheel_zoom,zoom_in,zoom_out,box_zoom,undo,redo,reset,tap,save,box_select,poly_select,lasso_select,"
-    p = figure(tools=TOOLS)
-    p.scatter(x, y, radius=radii,
+    p = figure(x_range=zipcodes, tools=TOOLS)
+    p.bar(zipcodes, scores, 
           fill_color=colors, fill_alpha=0.6,
           line_color=None)
     return p
@@ -43,31 +38,32 @@ app = Flask(__name__)
 def home():
     return render_template("home.html")
 
-@app.route("/zip_code")
-def data_by_zip_code():
-    #get the zip code
-    zip_code = 30033
+@app.route("/report_by_zipcode/<zipcode>")
+def report_by_zipcode(zipcode):
     #get health report for this zip code
-    plot = generate_report_by_zip_code(zip_code)
+    print(zipcode)
+    my_report = health_data.calculate_health_score(zipcode)
+    print(my_report)
+    #get my normalized health score
+    my_score = get_total_normalized_health_score
+    #get every zip code within a 25 mile radius
+    zipcodes = get_closest_zipcodes(zipcode)
+    #get their health reports
+    neighbors_health_reports = []
+    for zipcode in zipcodes:
+        report = health_data.calculate_health_score(zip_code)
+        neighbors_health_reports.append(report)
+    #get a plot of the scores
+    plot = create_normalized_score_figure(zipcodes)
     script, div = components(plot)
-    return render_template("dashboard.html", plot = [div, script])
+    return render_template("dashboard.html", plot = [div, script], my_report = my_report, neighbor_report = neighbors_health_reports)
     
 @app.route("/health_report")
 def health_report():
-    #create two vectors
-    plot = create_figure()
-    script, div = components(plot)
-    return render_template("health_report.html", plot = [div, script])
-                           
+    return report_by_zipcode(30033)
+
 if __name__ == "__main__":
-    #unpack the data
-    if not os.path.exists("data"):
-        os.mkdir("data")
-        print("directory created!")
-    #extract the data
-    print("unpacking_data...")
-    unpack_data("data.zip", "data")
     #run the app
     print("running the app.")
-    health_data.get_zip_code_score(30084)
+    health_data.calculate_health_score(30084)
     app.run()
